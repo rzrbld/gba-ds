@@ -22,7 +22,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define DEFAULT_URL "https://api.github.com/repos/kyannon/gba-ds/releases/latest"
+#define DEFAULT_URL "https://api.github.com/repos/rzrbld/gba-ds/releases/latest"
 #define CHECK_EVERY (24 * 60 * 60)
 #ifdef __ANDROID__
 #define ASSET_END "-android.apk" /* gba-ds-vX.Y.Z-android.apk */

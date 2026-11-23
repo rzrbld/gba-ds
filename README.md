@@ -1,3 +1,5 @@
+> Duo Lite Linux fork: [installation, compatibility changes and release builds](docs/duolite-linux.md). Upstream: [kyannon/gba-ds](https://github.com/kyannon/gba-ds).
+
 # GBA DS
 
 [![Join the GBA DS Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/TCVHSkK9wp)

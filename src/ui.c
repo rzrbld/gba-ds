@@ -1,5 +1,6 @@
 #include <limits.h>
 #include "ui.h"
+#include "panel_rotation.h"
 
 /* the left stick presses the D-pad (issue #57): game.c turns it off for a game
  * with left_stick_dpad = 0, and on again for its menus and the game list */
@@ -39,6 +40,8 @@ int nScreens;
 bool btnNow[B_COUNT], btnPrev[B_COUNT];
 volatile int uiQuit;
 
+static PanelRotation panelRotation[2];
+
 static Config* cfg;
 static uint64_t ticks;
 static SDL_GameController* pads[8];
@@ -51,6 +54,10 @@ static int secondW, secondH, gameW, gameH;
 
 /* A view's drawing size. */
 static void view_size(int v, int* w, int* h) {
+	if (panelRotation[v].target) {
+		*w = panelRotation[v].w, *h = panelRotation[v].h;
+		return;
+	}
 #ifdef __ANDROID__
 	if (views[v].offwin && !views[v].surf && secondW > 0) {
 		*w = secondW, *h = secondH;
@@ -276,6 +283,19 @@ static bool create_view(View* v, int display, const char* title, bool fullscreen
 	SDL_SetRenderDrawColor(v->ren, 0, 0, 0, 255);
 	SDL_RenderClear(v->ren);
 	SDL_RenderPresent(v->ren);
+#ifndef __ANDROID__
+	int angles[2] = { 0, 0 };
+	const char* rotations = getenv("GBADS_DISPLAY_ROTATIONS");
+	if (rotations) sscanf(rotations, "%d,%d", &angles[0], &angles[1]);
+	int i = (int) (v - views);
+	panelRotation[i].angle = angles[i];
+	if (panel_rotation_sync(&panelRotation[i], v->ren) < 0) {
+		fprintf(stderr, "panel rotation: %s\n", SDL_GetError());
+		return false;
+	}
+	if (panelRotation[i].target) fprintf(stderr, "display %d: upright %dx%d, rotation %d\n",
+	    display, panelRotation[i].w, panelRotation[i].h, panelRotation[i].angle);
+#endif
 	return true;
 }
 
@@ -601,6 +621,13 @@ static void disc_drop(void);
  * (the scaling pipeline's, the text images, the disc) are let go, to be
  * made again as they're next needed. */
 void ui_textures_reset(void) {
+	for (int v = 0; v < nViews; ++v) {
+		if (!panelRotation[v].target) continue;
+		SDL_SetRenderTarget(views[v].ren, NULL);
+		SDL_DestroyTexture(panelRotation[v].target);
+		panelRotation[v].target = NULL;
+		if (panel_rotation_sync(&panelRotation[v], views[v].ren) < 0) uiQuit = 1;
+	}
 	for (int v = 0; v < 2; ++v) {
 		for (int i = 0; i < PIPE_CACHE; ++i) {
 			if (pipeTargets[v][i].tex) SDL_DestroyTexture(pipeTargets[v][i].tex);
@@ -623,6 +650,8 @@ void ui_shutdown(void) {
 		}
 	}
 	for (int i = 0; i < nViews; ++i) {
+		if (panelRotation[i].target) SDL_DestroyTexture(panelRotation[i].target);
+		panelRotation[i] = (PanelRotation) { 0 };
 		if (i == 0 || views[i].ren != views[0].ren) SDL_DestroyRenderer(views[i].ren);
 		if (views[i].win) SDL_DestroyWindow(views[i].win);
 		if (views[i].surf) SDL_FreeSurface(views[i].surf);
@@ -634,6 +663,9 @@ void ui_shutdown(void) {
 static void layout_screens(void);
 
 void ui_layout(void) {
+	for (int i = 0; i < nViews; ++i) {
+		if (panelRotation[i].angle && panel_rotation_sync(&panelRotation[i], views[i].ren) < 0) uiQuit = 1;
+	}
 	layout_screens();
 	ui_layout_pictures();
 }
@@ -786,7 +818,7 @@ static void layout_screens(void) {
 		return;
 	}
 	int w, h;
-	SDL_GetRendererOutputSize(views[0].ren, &w, &h);
+	view_size(0, &w, &h);
 	/* tests: two screens of other sizes stacked in the window (the top one
 	 * first), as on devices whose screens differ: GBADS_SCREENS=1920x1080,1240x1080
 	 * (with GBADS_WINDOW the larger width x the heights together) */
@@ -886,6 +918,7 @@ static void queue_pointer(int kind, int view, float px, float py, bool normalize
 		if (view < 0) view = screens[ts].view;
 		int w, h;
 		view_size(view, &w, &h);
+		if (panelRotation[view].target) w = panelRotation[view].pw, h = panelRotation[view].ph;
 		int x, y;
 		if (normalized) {
 			/* (kept in the view: 1.0 at the right or bottom edge, a little
@@ -898,6 +931,7 @@ static void queue_pointer(int kind, int view, float px, float py, bool normalize
 			x = (int) (px * w / (ww ? ww : 1));
 			y = (int) (py * h / (wh ? wh : 1));
 		}
+		panel_rotation_pointer(&panelRotation[view], &x, &y);
 		p.screen = -1;
 		for (int i = 0; i < nScreens; ++i) {
 			SDL_Rect* r = &screens[i].rect;
@@ -1861,7 +1895,7 @@ void ui_present(void) {
 #else
 	for (int i = 0; i < nViews; ++i) {
 		Uint64 vt0 = SDL_GetPerformanceCounter();
-		SDL_RenderPresent(views[i].ren);
+		if (panel_rotation_present(&panelRotation[i], views[i].ren) < 0) uiQuit = 1;
 		lastPresentMs[i] = (double) (SDL_GetPerformanceCounter() - vt0) * 1000.0 / (double) SDL_GetPerformanceFrequency();
 	}
 	lastRedraws = (1 << nViews) - 1;
@@ -2178,6 +2212,7 @@ static void draw_pixels(SDL_Renderer* ren, int v, SDL_Texture* src, int w, int h
 	SDL_RenderGetClipRect(ren, &clipRect);
 	bool clipped = SDL_RenderIsClipEnabled(ren);
 	SDL_RenderSetClipRect(ren, NULL); /* the clip belongs to the screen, not the pipe target */
+	SDL_Texture* previousTarget = SDL_GetRenderTarget(ren);
 	SDL_SetRenderTarget(ren, target);
 	SDL_SetTextureScaleMode(src, SDL_ScaleModeNearest);
 	SDL_RenderCopy(ren, src, NULL, NULL);
@@ -2185,7 +2220,7 @@ static void draw_pixels(SDL_Renderer* ren, int v, SDL_Texture* src, int w, int h
 		SDL_Texture* grid = shader_mask(v, w * k, h * k, gw, gh, k * c);
 		if (grid) SDL_RenderCopy(ren, grid, NULL, NULL);
 	}
-	SDL_SetRenderTarget(ren, NULL);
+	SDL_SetRenderTarget(ren, previousTarget);
 	if (clipped) SDL_RenderSetClipRect(ren, &clipRect);
 	SDL_SetTextureScaleMode(target, exact ? SDL_ScaleModeNearest : SDL_ScaleModeLinear);
 	SDL_RenderCopy(ren, target, NULL, &dst);
@@ -2927,7 +2962,7 @@ void ui_screenshot(const char* path) {
 #endif
 	View* v = &views[0];
 	int w, h;
-	SDL_GetRendererOutputSize(v->ren, &w, &h);
+	view_size(0, &w, &h);
 	SDL_Surface* s = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
 	if (SDL_RenderReadPixels(v->ren, NULL, SDL_PIXELFORMAT_ARGB8888, s->pixels, s->pitch) == 0) {
 		SDL_SaveBMP(s, path);

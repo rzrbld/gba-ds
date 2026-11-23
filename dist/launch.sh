@@ -116,6 +116,9 @@ if [ -d /etc/banana ]; then
 	if [ "$VIDEO" = kmsdrm ]; then
 		export SDL_VIDEODRIVER=kmsdrm SDL_KMSDRM_FIRST=${BANANA_TOP:-DSI-2}
 		unset SDL_BANANA_PANELS
+		# Native KMS modes retain the physical panel orientation. Keep drawing
+		# coordinates upright, rotating only the final GPU texture at present.
+		export GBADS_DISPLAY_ROTATIONS=${GBADS_DISPLAY_ROTATIONS:-${BANANA_TOP_ROTATION:-0},${BANANA_BOTTOM_ROTATION:-0}}
 		# a window on each panel; touches are the bottom panel's own
 		case "$(cfgval layout)" in auto|"") B+=(--layout=dual) ;; esac
 		case "$(cfgval touch_map)" in window|"") B+=(--touch-map=screen) ;; esac
