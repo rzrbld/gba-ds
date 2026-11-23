@@ -91,7 +91,7 @@ if [ -n "$SIDE" ]; then
 fi
 
 # --- gba-ds ---------------------------------------------------------------
-make CROSS="$CROSS" MGBA_SRC="$DEPS/mgba" MGBA_BUILD="$DEPS/mgba/build-aarch64" \
+make -j"$BUILD_JOBS" CROSS="$CROSS" MGBA_SRC="$DEPS/mgba" MGBA_BUILD="$DEPS/mgba/build-aarch64" \
 	SDL_PREFIX="$DEPS/sdl-aarch64" OUT=build/aarch64${SIDE:+-$SIDE} OPTFLAGS="-O2 $GBADS_CPU_FLAGS" SIDE="$SIDE" SIDE_CODES="$SIDE_CODES"
 
 # --- package ---------------------------------------------------------------

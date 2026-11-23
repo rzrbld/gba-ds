@@ -57,9 +57,17 @@ APP_SRC    := src/main.c src/config.c src/i18n.c src/i18n_data.c src/font.c src/
 
 all: $(OUT)/gba-ds
 
-$(OUT)/gba-ds: $(APP_SRC) src/*.h VERSION $(MGBA_BUILD)/libmgba.a $(RC_OBJ) $(WEBP_OBJ) $(RZSTD_OBJ)
+# Compile translation units independently so -j also speeds up the app itself,
+# not only its dependencies. Keep flags identical for every object.
+APP_OBJ := $(patsubst src/%.c,$(OUT)/app/%.o,$(APP_SRC))
+
+$(OUT)/gba-ds: $(APP_OBJ) $(MGBA_BUILD)/libmgba.a $(RC_OBJ) $(WEBP_OBJ) $(RZSTD_OBJ)
 	@mkdir -p $(OUT)
-	$(CC) $(CFLAGS) -DGBADS_RA -I$(RC_DIR)/include -I$(RC_DIR)/src -I$(WEBP_DIR) -o $@ $(APP_SRC) $(RC_OBJ) $(WEBP_OBJ) $(RZSTD_OBJ) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $(APP_OBJ) $(RC_OBJ) $(WEBP_OBJ) $(RZSTD_OBJ) $(LDFLAGS) $(LIBS)
+
+$(OUT)/app/%.o: src/%.c src/*.h VERSION $(MGBA_BUILD)/libmgba.a
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -DGBADS_RA -I$(RC_DIR)/include -I$(RC_DIR)/src -I$(WEBP_DIR) -c $< -o $@
 
 $(OUT)/rcheevos/%.o: $(RC_DIR)/src/%.c $(wildcard $(RC_DIR)/include/*.h)
 	@mkdir -p $(dir $@)
