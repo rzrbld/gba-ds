@@ -38,7 +38,7 @@ Install the dependencies listed in `.github/workflows/linux.yml`, then run:
 AARCH64_TOOLCHAIN_BIN=/usr/bin BUILD_JOBS=4 scripts/build-rocknix.sh
 ```
 
-Actions builds branch/PR artifacts. A version tag such as `v1.6.1.1` publishes
+Actions builds PR/manual artifacts. A version tag such as `v1.6.1.1` publishes
 that exact archive and its checksum as a release. Release assets are produced by
 Actions, never uploaded from a local build. Match `VERSION` to the tag. The default
 CPU flags can be overridden with `GBADS_CPU_FLAGS` for development; keep releases
