@@ -2,7 +2,7 @@ name: Linux handheld build
 on:
   push:
     branches: [main, 'fix/**']
-    tags: ['v*-duo.*']
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 permissions:
