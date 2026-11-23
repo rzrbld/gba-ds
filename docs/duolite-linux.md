@@ -7,10 +7,10 @@ immutable firmware. The upstream project is <https://github.com/kyannon/gba-ds>.
 
 In Slopetanium, add `rzrbld/gba-ds` as an **App** source and choose the release's
 `gba-ds-v…-linux-aarch64.zip`. Keep the launcher selection automatic: the archive
-contains the original single `GBA DS.sh` entry. Ports continue to use PortMaster;
-this app appears in BananaOS's main menu. This is a separate source from
-`kyannon/gba-ds`; remove that app entry before installing this fork if you want to
-avoid duplicate tiles. Keep saves and ROMs when uninstalling.
+contains one `GBA DS Duo.sh` entry. Ports continue to use PortMaster;
+this app appears as **GBA DS Duo** in BananaOS's main menu. It uses a separate
+package directory and tile from `kyannon/gba-ds`, so installing this fork does not
+replace or modify that app. ROMs and saves still use BananaOS's shared folders.
 
 The in-app updater defaults to this fork's releases. A user-supplied `update_url`
 still overrides it. Do not switch back to the upstream Linux package until it

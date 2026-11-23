@@ -97,7 +97,7 @@ make CROSS="$CROSS" MGBA_SRC="$DEPS/mgba" MGBA_BUILD="$DEPS/mgba/build-aarch64" 
 # --- package ---------------------------------------------------------------
 VERSION=$(cat VERSION)
 APP=gba-ds${SIDE:+-$SIDE}            # the install folder
-ENTRY="GBA DS${SIDE:+ $SIDE_NAME testing}"   # the Ports entry
+ENTRY="GBA DS Duo${SIDE:+ $SIDE_NAME testing}"   # the Ports entry
 ZIP="gba-ds-v$VERSION${SIDE:+-$SIDE}-linux-aarch64.zip"
 PKG="$ROOT/build/pkg/$APP"
 rm -rf "$ROOT/build/pkg"
