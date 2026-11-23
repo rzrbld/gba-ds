@@ -1,0 +1,60 @@
+name: Linux handheld build
+on:
+  push:
+    branches: [main, 'fix/**']
+    tags: ['v*-duo.*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: linux-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git zip pkg-config gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libsdl2-dev
+      - name: Test panel rotation
+        run: |
+          mkdir -p build
+          cc -Wall -Wextra -Werror -Isrc $(sdl2-config --cflags) tests/test-panel-rotation.c $(sdl2-config --libs) -o build/test-panel-rotation
+          build/test-panel-rotation
+          bash -n dist/launch.sh scripts/build-rocknix.sh
+      - uses: actions/cache@v4
+        with:
+          path: deps
+          key: linux-armv8-${{ runner.os }}-${{ hashFiles('scripts/mgba-options.sh', 'cmake/aarch64.cmake', 'scripts/build-rocknix.sh') }}
+      - name: Cross build ARMv8 Linux package
+        env:
+          AARCH64_TOOLCHAIN_BIN: /usr/bin
+          BUILD_JOBS: '4'
+        run: scripts/build-rocknix.sh
+      - name: Verify archive and checksum
+        run: |
+          zip="dist/gba-ds-v$(cat VERSION)-linux-aarch64.zip"
+          unzip -t "$zip"
+          sha256sum "$zip" > "$zip.sha256"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            test "${GITHUB_REF#refs/tags/v}" = "$(cat VERSION)"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gba-ds-linux-aarch64
+          path: |
+            dist/*-linux-aarch64.zip
+            dist/*-linux-aarch64.zip.sha256
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*-linux-aarch64.zip dist/*-linux-aarch64.zip.sha256 \
+            --title "GBA DS $(cat VERSION) (Duo Linux)" --generate-notes

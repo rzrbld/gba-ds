@@ -31,6 +31,8 @@ if [ -z "${AARCH64_TOOLCHAIN_BIN:-}" ]; then
 	export AARCH64_TOOLCHAIN_BIN="$TC/bin"
 fi
 CROSS="$AARCH64_TOOLCHAIN_BIN/aarch64-linux-gnu-"
+export GBADS_CPU_FLAGS="${GBADS_CPU_FLAGS:--march=armv8-a -mtune=cortex-a55}"
+BUILD_JOBS=${BUILD_JOBS:-$(nproc)}
 
 # --- libmgba ---------------------------------------------------------------
 if [ ! -d "$DEPS/mgba" ]; then
@@ -42,7 +44,7 @@ if grep -q "^LIBMGBA_ONLY:UNINITIALIZED=ON" "$DEPS/mgba/build-aarch64/CMakeCache
 	rm -rf "$DEPS/mgba/build-aarch64"
 fi
 cmake -S "$DEPS/mgba" -B "$DEPS/mgba/build-aarch64" -DCMAKE_TOOLCHAIN_FILE="$ROOT/cmake/aarch64.cmake" "${MGBA_OPTS[@]}"
-make -C "$DEPS/mgba/build-aarch64" -j"$(nproc)" mgba zlibstatic
+make -C "$DEPS/mgba/build-aarch64" -j"$BUILD_JOBS" mgba zlibstatic
 
 # --- SDL2 (only to link against; the device's own libSDL2 is used at runtime) ---
 if [ ! -d "$DEPS/SDL2" ]; then
@@ -50,7 +52,7 @@ if [ ! -d "$DEPS/SDL2" ]; then
 fi
 cmake -S "$DEPS/SDL2" -B "$DEPS/SDL2/build-aarch64" -DCMAKE_TOOLCHAIN_FILE="$ROOT/cmake/aarch64.cmake" \
 	-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$DEPS/sdl-aarch64" -DSDL_STATIC=OFF -DSDL_TEST=OFF
-make -C "$DEPS/SDL2/build-aarch64" -j"$(nproc)" install
+make -C "$DEPS/SDL2/build-aarch64" -j"$BUILD_JOBS" install
 
 # GBADS_SIDE=slug: a side build of a game branch (game/<slug>), to try it
 # beside the main install: the folder gba-ds-<slug> and the Ports entry
@@ -90,7 +92,7 @@ fi
 
 # --- gba-ds ---------------------------------------------------------------
 make CROSS="$CROSS" MGBA_SRC="$DEPS/mgba" MGBA_BUILD="$DEPS/mgba/build-aarch64" \
-	SDL_PREFIX="$DEPS/sdl-aarch64" OUT=build/aarch64${SIDE:+-$SIDE} OPTFLAGS="-O2 -mcpu=cortex-a55" SIDE="$SIDE" SIDE_CODES="$SIDE_CODES"
+	SDL_PREFIX="$DEPS/sdl-aarch64" OUT=build/aarch64${SIDE:+-$SIDE} OPTFLAGS="-O2 $GBADS_CPU_FLAGS" SIDE="$SIDE" SIDE_CODES="$SIDE_CODES"
 
 # --- package ---------------------------------------------------------------
 VERSION=$(cat VERSION)
