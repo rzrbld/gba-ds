@@ -51,7 +51,7 @@ if [ ! -d "$DEPS/SDL2" ]; then
 	git clone --depth 1 -b "$SDL_BRANCH" https://github.com/libsdl-org/SDL.git "$DEPS/SDL2"
 fi
 cmake -S "$DEPS/SDL2" -B "$DEPS/SDL2/build-aarch64" -DCMAKE_TOOLCHAIN_FILE="$ROOT/cmake/aarch64.cmake" \
-	-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$DEPS/sdl-aarch64" -DSDL_STATIC=OFF -DSDL_TEST=OFF
+	-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$DEPS/sdl-aarch64" -DSDL_STATIC=OFF -DSDL_TEST=OFF -DSDL_LIBSAMPLERATE=OFF
 make -C "$DEPS/SDL2/build-aarch64" -j"$BUILD_JOBS" install
 
 # GBADS_SIDE=slug: a side build of a game branch (game/<slug>), to try it
